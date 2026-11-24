@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../services/group_service.dart';
 import '../providers/auth_provider.dart';
 
@@ -126,10 +127,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   }
 
   void _showGroupDetail(BuildContext context, Map<String, dynamic> group) {
-    // For now show a simple detail; we'll wire up the full screen later
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening ${group['group_name']}...')),
-    );
+    context.push('/groups/${group['group_id']}');
   }
 
   void _showCreateDialog(BuildContext context) {

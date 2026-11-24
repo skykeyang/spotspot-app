@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_shell.dart';
+import 'screens/group_detail_screen.dart';
 
 final _routerRefreshNotifier = ChangeNotifier();
 void notifyRouterRefresh() => _routerRefreshNotifier.notifyListeners();
@@ -23,6 +24,7 @@ final goRouter = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/', builder: (context, state) => const MainShell()),
+    GoRoute(path: '/groups/:id', builder: (context, state) => GroupDetailScreen(groupId: state.pathParameters['id']!)),
   ],
 );
 
