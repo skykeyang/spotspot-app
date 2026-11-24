@@ -7,6 +7,10 @@ import '../services/group_service.dart';
 import '../providers/auth_provider.dart';
 import 'main_shell.dart';
 
+final userGroupsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, userId) async {
+  return ref.read(groupServiceProvider).getUserGroups(userId);
+});
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,7 +19,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _generating = false;
+  String? _busyPoolId;
 
   @override
   Widget build(BuildContext context) {
@@ -29,33 +33,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: const Text('SpotSpot'),
         automaticallyImplyLeading: false,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        children: [
-          // Greeting
-          Text(
-            'Hey, ${user?.email?.split('@').first ?? 'there'} 👋',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Pick a board and start spotting.',
-            style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 24),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (user != null) ref.invalidate(userGroupsProvider(user.id));
+        },
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          children: [
+            // Greeting
+            Text(
+              'Hey, ${user?.email?.split('@').first ?? 'there'} 👋',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Pick a board and start spotting.',
+              style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 24),
 
-          // How to play
-          _howToPlay(context),
-          const SizedBox(height: 24),
+            // How to play
+            _howToPlay(context),
+            const SizedBox(height: 24),
 
-          // Pick your board
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text('PICK YOUR BOARD',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, color: theme.colorScheme.onSurfaceVariant)),
-          ),
+            // Pick your board
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text('PICK YOUR BOARD',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, color: theme.colorScheme.onSurfaceVariant)),
+            ),
 
-          // Featured — tappable, generates board and goes to groups
+          // Featured pool
           _poolCard(context, featuredPool, true),
           const SizedBox(height: 12),
 
@@ -67,32 +75,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           const SizedBox(height: 24),
 
-          // Group actions — prominent
-          Text('GROUPS',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, color: theme.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 12),
-
-          // Create group button
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => _showCreateDialog(context),
-              icon: const Icon(Icons.add_circle, size: 20),
-              label: const Text('Create New Group'),
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-            ),
+          // Groups section
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text('GROUPS',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, color: theme.colorScheme.onSurfaceVariant)),
           ),
-          const SizedBox(height: 10),
 
-          // Join group button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _showJoinDialog(context),
-              icon: const Icon(Icons.group_add, size: 20),
-              label: const Text('Join with Invite Code'),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-            ),
+          // Create + Join buttons side by side
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _showCreateDialog(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Create'),
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showJoinDialog(context),
+                  icon: const Icon(Icons.group_add, size: 18),
+                  label: const Text('Join'),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 
@@ -102,7 +112,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: const Icon(Icons.groups, size: 18),
             label: const Text('View My Groups →'),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -111,7 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final theme = Theme.of(context);
     final steps = [
       ('1', 'Pick a board theme below'),
-      ('2', 'Create a group or join one with an invite code'),
+      ('2', 'Create a group or join with an invite code'),
       ('3', 'Tap squares to check them off — snap photos as proof!'),
       ('4', 'Complete a row, column, or diagonal to Bingo!'),
     ];
@@ -145,8 +156,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _poolCard(BuildContext context, BingoPool pool, bool featured) {
     final theme = Theme.of(context);
     final color = hexToColor(pool.color);
+    final isBusy = _busyPoolId == pool.id;
+
     return InkWell(
-      onTap: _generating ? null : () => _onPoolTap(pool),
+      onTap: isBusy ? null : () => _onPoolTap(pool),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -167,12 +180,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Text(pool.tagline, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
                   const SizedBox(height: 2),
                   Text(pool.description, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Text('${pool.events.where((e) => e.active).length} challenges',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
                 ],
               ),
             ),
-            _generating
-                ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: color))
-                : Icon(Icons.arrow_forward, color: color, size: 20),
+            if (isBusy)
+              const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+            else
+              Icon(Icons.play_circle_fill, color: color, size: 28),
           ],
         ),
       ),
@@ -180,36 +197,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onPoolTap(BingoPool pool) async {
-    setState(() => _generating = true);
     final user = ref.read(authNotifierProvider);
     if (user == null) return;
 
-    // Check if user already has a group with this pool
+    setState(() => _busyPoolId = pool.id);
+
     try {
-      final groups = await ref.read(groupServiceProvider).getUserGroups(user.id);
-      // Find or create a solo group for this pool
-      // For now, just switch to groups tab so they can create/join
-      ref.read(currentTabIndexProvider.notifier).set(1);
-    } catch (_) {
-      // ignore
+      final service = ref.read(groupServiceProvider);
+      final groups = await service.getUserGroups(user.id);
+
+      // Look for existing group with this pool
+      String? groupId;
+      for (final g in groups) {
+        final gPoolId = g['pool_id'] as String?;
+        if (gPoolId == pool.id) {
+          groupId = g['group_id'] as String?;
+          break;
+        }
+      }
+
+      if (groupId == null) {
+        // Create a new group with this pool
+        final group = await service.createGroup(
+          userId: user.id,
+          name: '${pool.name} Board',
+          poolId: pool.id,
+        );
+        groupId = group.id;
+      }
+
+      // Ensure board exists
+      final board = await service.getBoard(user.id, groupId);
+      if (board == null) {
+        await service.createBoard(user.id, groupId, pool.id);
+      }
+
+      if (user != null) ref.invalidate(userGroupsProvider(user.id));
+
+      // Navigate to the group detail
+      if (mounted) {
+        context.push('/groups/$groupId');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
-      if (mounted) setState(() => _generating = false);
+      if (mounted) setState(() => _busyPoolId = null);
     }
   }
 
   void _showCreateDialog(BuildContext context) {
-    final pools = activePools;
     showDialog(context: context, builder: (context) => _CreateDialog(
-      pools: pools,
+      pools: activePools,
+      defaultPool: activePools.first,
       onCreate: (name, poolId) async {
         final user = ref.read(authNotifierProvider);
         if (user == null) return;
-        await ref.read(groupServiceProvider).createGroup(
+        final group = await ref.read(groupServiceProvider).createGroup(
           userId: user.id, name: name, poolId: poolId,
         );
+        // Create board too
+        await ref.read(groupServiceProvider).createBoard(user.id, group.id, poolId);
         ref.invalidate(userGroupsProvider(user.id));
         if (context.mounted) Navigator.pop(context);
-        ref.read(currentTabIndexProvider.notifier).set(1);
+        // Navigate to the new group
+        context.push('/groups/${group.id}');
       },
     ));
   }
@@ -228,44 +281,112 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-// Providers needed by this screen
-final userGroupsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, userId) async {
-  return ref.read(groupServiceProvider).getUserGroups(userId);
-});
-
 class _CreateDialog extends StatefulWidget {
   final List<BingoPool> pools;
+  final BingoPool defaultPool;
   final Future<void> Function(String name, String poolId) onCreate;
-  const _CreateDialog({required this.pools, required this.onCreate});
+  const _CreateDialog({required this.pools, required this.defaultPool, required this.onCreate});
+
   @override
   State<_CreateDialog> createState() => _CreateDialogState();
 }
 
 class _CreateDialogState extends State<_CreateDialog> {
   final _ctrl = TextEditingController();
-  String _selectedPoolId = '';
+  late String _selectedPoolId;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedPoolId = widget.pools.first.id;
+    _selectedPoolId = widget.defaultPool.id;
   }
+
+  BingoPool get _selectedPool => widget.pools.firstWhere((p) => p.id == _selectedPoolId);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final poolColor = hexToColor(_selectedPool.color);
+
     return AlertDialog(
       title: const Text('Create New Group'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(controller: _ctrl, decoration: const InputDecoration(hintText: 'Group name (e.g. My Pickleball Kaki)'), autofocus: true),
+          // Group name
+          TextField(
+            controller: _ctrl,
+            decoration: const InputDecoration(
+              hintText: 'Group name (e.g. My Pickleball Kaki)',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          const SizedBox(height: 20),
+
+          // Board theme label
+          Text('BOARD THEME',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+
+          // Pool selection — visual cards
+          Row(
+            children: widget.pools.map((p) {
+              final selected = p.id == _selectedPoolId;
+              final c = hexToColor(p.color);
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedPoolId = p.id),
+                  child: Container(
+                    margin: EdgeInsets.only(right: p.id != widget.pools.last.id ? 8 : 0),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: selected ? c.withOpacity(0.1) : theme.colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selected ? c : theme.dividerColor,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(p.emoji, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(height: 4),
+                        Text(p.name, style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                          color: selected ? c : theme.colorScheme.onSurfaceVariant,
+                        )),
+                        const SizedBox(height: 2),
+                        Text('${p.events.where((e) => e.active).length} challenges',
+                          style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6))),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          // Selected pool preview
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedPoolId,
-            decoration: const InputDecoration(hintText: 'Board theme'),
-            items: widget.pools.map((p) => DropdownMenuItem(value: p.id, child: Text('${p.emoji} ${p.name}'))).toList(),
-            onChanged: (v) => setState(() => _selectedPoolId = v ?? widget.pools.first.id),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: poolColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: poolColor.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Text(_selectedPool.emoji, style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_selectedPool.description,
+                  style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant))),
+              ],
+            ),
           ),
         ],
       ),
@@ -275,11 +396,16 @@ class _CreateDialogState extends State<_CreateDialog> {
           onPressed: _loading ? null : () async {
             if (_ctrl.text.trim().isEmpty) return;
             setState(() => _loading = true);
-            try { await widget.onCreate(_ctrl.text.trim(), _selectedPoolId); }
-            catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+            try {
+              await widget.onCreate(_ctrl.text.trim(), _selectedPoolId);
+            } catch (e) {
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+            }
             if (mounted) setState(() => _loading = false);
           },
-          child: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Create'),
+          child: _loading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Create & Play'),
         ),
       ],
     );
@@ -289,6 +415,7 @@ class _CreateDialogState extends State<_CreateDialog> {
 class _JoinDialog extends StatefulWidget {
   final Future<void> Function(String code) onJoin;
   const _JoinDialog({required this.onJoin});
+
   @override
   State<_JoinDialog> createState() => _JoinDialogState();
 }
@@ -303,7 +430,10 @@ class _JoinDialogState extends State<_JoinDialog> {
       title: const Text('Join Group'),
       content: TextField(
         controller: _ctrl,
-        decoration: const InputDecoration(hintText: 'Enter 6-character invite code'),
+        decoration: const InputDecoration(
+          hintText: 'Enter 6-character invite code',
+          border: OutlineInputBorder(),
+        ),
         autofocus: true,
         textCapitalization: TextCapitalization.characters,
       ),
@@ -317,7 +447,9 @@ class _JoinDialogState extends State<_JoinDialog> {
             catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
             if (mounted) setState(() => _loading = false);
           },
-          child: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Join'),
+          child: _loading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Text('Join'),
         ),
       ],
     );
