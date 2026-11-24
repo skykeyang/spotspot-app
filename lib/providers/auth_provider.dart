@@ -29,7 +29,7 @@ class AuthNotifier extends Notifier<User?> {
           : 'io.supabase.flutter://login-callback/',
       authScreenLaunchMode: kIsWeb
           ? LaunchMode.platformDefault
-          : LaunchMode.externalApplication,
+          : LaunchMode.inAppBrowserView,
     );
   }
 
