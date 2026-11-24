@@ -51,7 +51,7 @@ class SpotSpotApp extends ConsumerWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD94141), brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: goRouter,
     );
   }
