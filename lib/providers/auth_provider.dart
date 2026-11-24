@@ -18,7 +18,13 @@ final isSignedInProvider = Provider<bool>((ref) {
 // Auth loading state
 class AuthLoadingNotifier extends Notifier<bool> {
   @override
-  bool build() => false;
+  bool build() {
+    // Clear loading whenever auth state changes
+    ref.listen(authStateProvider, (_, __) {
+      state = false;
+    });
+    return false;
+  }
   void start() => state = true;
   void stop() => state = false;
 }
@@ -27,6 +33,8 @@ final authLoadingProvider = NotifierProvider<AuthLoadingNotifier, bool>(AuthLoad
 class AuthNotifier extends Notifier<User?> {
   @override
   User? build() {
+    // Refresh user when auth state changes
+    ref.watch(authStateProvider);
     return ref.read(supabaseProvider).auth.currentUser;
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/group.dart';
 import '../services/group_service.dart';
 import '../services/pools.dart';
@@ -108,36 +109,72 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
 
         final isChecked = board.checked.length > index && board.checked[index];
         final event = board.squares.length > index ? board.squares[index] : null;
+        final photoUrl = board.photos[index];
 
         return GestureDetector(
           onTap: () => _toggleSquare(index, board, userId, group.id),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isChecked ? poolColor.withOpacity(0.15) : theme.colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isChecked ? poolColor : theme.dividerColor, width: isChecked ? 1.5 : 1),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(isChecked ? Icons.check_circle : Icons.circle_outlined,
-                      color: isChecked ? poolColor : theme.dividerColor, size: 18),
-                  const SizedBox(height: 2),
-                  Text(
-                    event?.text ?? '',
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 7,
-                      color: isChecked ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background
+              Container(
+                decoration: BoxDecoration(
+                  color: isChecked ? poolColor.withOpacity(0.15) : theme.colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isChecked ? poolColor : theme.dividerColor, width: isChecked ? 1.5 : 1),
+                ),
+              ),
+              // Photo thumbnail if checked and photo exists
+              if (isChecked && photoUrl != null && photoUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: poolColor.withOpacity(0.2)),
+                    errorWidget: (_, __, ___) => Container(
+                      color: poolColor.withOpacity(0.2),
+                      child: Icon(Icons.check_circle, color: poolColor, size: 20),
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              // Event text (show when no photo, or as overlay when photo exists)
+              if (!isChecked || photoUrl == null || photoUrl.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(isChecked ? Icons.check_circle : Icons.circle_outlined,
+                          color: isChecked ? poolColor : theme.dividerColor, size: 18),
+                      const SizedBox(height: 2),
+                      Text(
+                        event?.text ?? '',
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 7,
+                          color: isChecked ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // Checkmark badge when photo exists
+              if (isChecked && photoUrl != null && photoUrl.isNotEmpty)
+                Positioned(
+                  top: 2, right: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: poolColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 10),
+                  ),
+                ),
+            ],
           ),
         );
       },
