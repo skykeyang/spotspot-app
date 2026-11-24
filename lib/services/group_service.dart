@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -220,7 +221,8 @@ class GroupService {
   // === Storage ===
   Future<String> uploadPhoto(String userId, String groupId, String filePath) async {
     final path = '$userId/$groupId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await _client.storage.from('feed-photos').upload(path, filePath);
+    final file = File(filePath);
+    await _client.storage.from('feed-photos').upload(path, file);
     return _client.storage.from('feed-photos').getPublicUrl(path);
   }
 
