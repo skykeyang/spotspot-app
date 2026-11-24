@@ -10,77 +10,129 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  bool _loading = false;
   String? _error;
 
   Future<void> _signIn() async {
-    setState(() => _loading = true);
+    setState(() => _error = null);
     try {
       await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+      // Loading state will be cleared by auth state change
     } catch (e) {
       setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authLoadingProvider);
+    final theme = Theme.of(context);
+
     return Scaffold(
-      body: Center(
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Logo
               Text(
                 'SPOTSPOT',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -1,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: theme.colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'SG Bingo',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 4),
               Text(
                 'Spot it. Snap it. Win it.',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                 ),
               ),
-              const SizedBox(height: 32),
-              _buildFeatureRow(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
+
+              // Feature row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _feature(context, '🎯', 'Spot moments'),
+                  const SizedBox(width: 24),
+                  _feature(context, '📸', 'Snap proof'),
+                  const SizedBox(width: 24),
+                  _feature(context, '🏆', 'Win bingo'),
+                ],
+              ),
+              const SizedBox(height: 40),
+
+              // Sign in button
               if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
-                ),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _loading ? null : _signIn,
-                  icon: _loading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.login, size: 18),
-                  label: Text(_loading ? 'Signing in...' : 'Continue with Google'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(_error!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
                   ),
                 ),
+
+              SizedBox(
+                height: 52,
+                child: FilledButton(
+                  onPressed: isLoading ? null : _signIn,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isLoading
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(width: 10),
+                            Text('Opening Google sign in...',
+                              style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant)),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _googleIcon(),
+                            const SizedBox(width: 10),
+                            const Text('Continue with Google', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                ),
               ),
+
+              if (isLoading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    'Complete the sign in your browser, then you\'ll be redirected back.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                  ),
+                ),
             ],
           ),
         ),
@@ -88,26 +140,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildFeatureRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _feature(BuildContext context, String emoji, String label) {
+    return Column(
       children: [
-        _feature('🎯', 'Spot moments'),
-        const SizedBox(width: 24),
-        _feature('📸', 'Snap proof'),
-        const SizedBox(width: 24),
-        _feature('🏆', 'Win bingo'),
+        Text(emoji, style: const TextStyle(fontSize: 24)),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     );
   }
 
-  Widget _feature(String emoji, String label) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      ],
+  Widget _googleIcon() {
+    return Image.network(
+      'https://www.google.com/favicon.ico',
+      width: 18, height: 18,
+      errorBuilder: (_, __, ___) => const Icon(Icons.login, size: 18),
     );
   }
 }

@@ -15,6 +15,15 @@ final isSignedInProvider = Provider<bool>((ref) {
   return ref.watch(currentUserProvider) != null;
 });
 
+// Auth loading state
+class AuthLoadingNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void start() => state = true;
+  void stop() => state = false;
+}
+final authLoadingProvider = NotifierProvider<AuthLoadingNotifier, bool>(AuthLoadingNotifier.new);
+
 class AuthNotifier extends Notifier<User?> {
   @override
   User? build() {
@@ -22,15 +31,17 @@ class AuthNotifier extends Notifier<User?> {
   }
 
   Future<void> signInWithGoogle() async {
-    await ref.read(supabaseProvider).auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: kIsWeb
-          ? null
-          : 'io.supabase.flutter://login-callback/',
-      authScreenLaunchMode: kIsWeb
-          ? LaunchMode.platformDefault
-          : LaunchMode.platformDefault,
-    );
+    ref.read(authLoadingProvider.notifier).start();
+    try {
+      await ref.read(supabaseProvider).auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'io.supabase.flutter://login-callback/',
+        authScreenLaunchMode: LaunchMode.platformDefault,
+      );
+    } catch (e) {
+      ref.read(authLoadingProvider.notifier).stop();
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
