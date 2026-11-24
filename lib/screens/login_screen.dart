@@ -16,9 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _signIn() async {
     setState(() => _loading = true);
     try {
-      await ref.read(authNotifierProvider.notifier).signInWithGoogle(
-        redirectTo: 'io.supabase.flutter://login-callback/',
-      );
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
@@ -20,10 +21,15 @@ class AuthNotifier extends Notifier<User?> {
     return ref.read(supabaseProvider).auth.currentUser;
   }
 
-  Future<void> signInWithGoogle({required String redirectTo}) async {
+  Future<void> signInWithGoogle() async {
     await ref.read(supabaseProvider).auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: redirectTo,
+      redirectTo: kIsWeb
+          ? null
+          : 'io.supabase.flutter://login-callback/',
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
     );
   }
 
